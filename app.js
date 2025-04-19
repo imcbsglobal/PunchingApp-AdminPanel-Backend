@@ -1,11 +1,8 @@
-// app.js
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const xss = require("xss-clean");
 const rateLimit = require("express-rate-limit");
 const logger = require("./config/winston");
-const errorHandler = require("./middleware/errorHandler");
 
 // Import routes
 const authRoutes = require("./routes/authRoutes");
@@ -15,15 +12,11 @@ const adminRoutes = require("./routes/adminRoutes");
 // Create Express app
 const app = express();
 
-// Global middlewares
 // Body parser
 app.use(express.json({ limit: "10kb" }));
 
 // Security headers
 app.use(helmet());
-
-// Data sanitization against XSS
-app.use(xss());
 
 // Enable CORS
 app.use(cors());
@@ -36,18 +29,12 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-// Add request logger middleware
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.originalUrl}`);
-  next();
-});
-
 // Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/data", dataRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
-// Health check endpoint
+// Basic health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
@@ -55,15 +42,12 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Handle undefined routes
-app.all("*", (req, res) => {
+// Basic 404 handler
+app.use((req, res) => {
   res.status(404).json({
     status: "fail",
-    message: `Can't find ${req.originalUrl} on this server!`,
+    message: "Not found",
   });
 });
-
-// Error handler middleware
-app.use(errorHandler);
 
 module.exports = app;

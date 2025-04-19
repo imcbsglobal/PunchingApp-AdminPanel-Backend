@@ -28,7 +28,7 @@ exports.protect = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Check if admin exists
-    const { rows } = await query("SELECT * FROM admins WHERE id = $1", [
+    const { rows } = await query("SELECT * FROM sync_users WHERE id = $1", [
       decoded.id,
     ]);
 

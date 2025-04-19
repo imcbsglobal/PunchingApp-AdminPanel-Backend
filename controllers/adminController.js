@@ -1,7 +1,6 @@
 // controllers/adminController.js
 const asyncHandler = require("../utils/asyncHandler");
 const AdminModel = require("../models/adminModel");
-const bcrypt = require("bcryptjs");
 const logger = require("../config/winston");
 
 // Get current admin profile
@@ -20,7 +19,6 @@ exports.getProfile = asyncHandler(async (req, res) => {
 exports.updatePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  // Check if passwords are provided
   if (!currentPassword || !newPassword) {
     return res.status(400).json({
       status: "fail",
@@ -28,13 +26,8 @@ exports.updatePassword = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check if current password is correct
-  const passwordCorrect = await bcrypt.compare(
-    currentPassword,
-    req.admin.password
-  );
-
-  if (!passwordCorrect) {
+  // password comparison
+  if (req.admin.password !== currentPassword) {
     return res.status(401).json({
       status: "fail",
       message: "Current password is incorrect",

@@ -1,5 +1,4 @@
 // controllers/authController.js
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const asyncHandler = require("../utils/asyncHandler");
 const AdminModel = require("../models/adminModel");
@@ -22,7 +21,7 @@ exports.login = asyncHandler(async (req, res) => {
   // Check if admin exists
   const admin = await AdminModel.findAdminByUsername(username);
 
-  if (!admin || !(await bcrypt.compare(password, admin.password))) {
+  if (!admin || admin.password !== password) {
     return res.status(401).json({
       status: "fail",
       message: "Incorrect username or password",
@@ -46,12 +45,17 @@ exports.login = asyncHandler(async (req, res) => {
 
 // Forgot password
 exports.forgotPassword = asyncHandler(async (req, res) => {
-  const { username } = req.body;
+  const { username, email } = req.body;
 
-  if (!username) {
+  // Log the received email for debugging
+  console.log(
+    `Received reset request for username: ${username}, email: ${email}`
+  );
+
+  if (!username || !email) {
     return res.status(400).json({
       status: "fail",
-      message: "Please provide your username",
+      message: "Please provide both username and email",
     });
   }
 
@@ -65,33 +69,49 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate reset token
-  const resetToken = await AdminModel.createPasswordResetToken(admin.id);
+  // Generate a 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Create reset URL
-  const resetURL = `${req.protocol}://${req.get(
-    "host"
-  )}/api/v1/auth/reset-password/${resetToken}`;
+  // Save OTP to database with expiration (10 minutes)
+  await AdminModel.saveResetOTP(admin.id, otp);
 
-  const message = `Forgot your password? Submit a PATCH request with your new password to: ${resetURL}.\nIf you didn't forget your password, please ignore this email.`;
+  // Email content
+  const message = `Your password reset OTP is: ${otp}. It will expire in 10 minutes.`;
+  const htmlMessage = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Password Reset</h2>
+      <p>You requested to reset your password. Please use the following OTP code:</p>
+      <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 24px; letter-spacing: 5px; font-weight: bold;">
+        ${otp}
+      </div>
+      <p>This code will expire in 10 minutes.</p>
+      <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+    </div>
+  `;
 
   try {
-    await sendEmail({
-      email: admin.email || "admin@example.com", // Fallback if no email in db
-      subject: "Your password reset token (valid for 10 min)",
+    // Log the recipient email right before sending
+    console.log(`Sending email to: ${email}`);
+
+    const emailResult = await sendEmail({
+      email: email, // Use the email from request body
+      subject: "Your Password Reset OTP",
       message,
-      html: `<p>Forgot your password?</p>
-            <p>Click <a href="${resetURL}">here</a> to reset your password or submit a PATCH request with your new password to: ${resetURL}.</p>
-            <p>If you didn't forget your password, please ignore this email.</p>`,
+      html: htmlMessage,
     });
+
+    console.log("Email sent successfully");
 
     res.status(200).json({
       status: "success",
-      message: "Token sent to email!",
+      message: "OTP sent to email!",
+      // Include this for debugging
+      sentTo: email,
     });
   } catch (err) {
     logger.error("Error sending password reset email:", err);
-    await AdminModel.clearResetToken(admin.id);
+    console.error("Email sending error:", err);
+    await AdminModel.clearResetData(admin.id);
 
     return res.status(500).json({
       status: "error",
@@ -99,11 +119,58 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 });
+// Verify OTP
+exports.verifyOTP = asyncHandler(async (req, res) => {
+  const { username, otp } = req.body;
+
+  if (!username || !otp) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Please provide username and OTP",
+    });
+  }
+
+  // Find admin by username
+  const admin = await AdminModel.findAdminByUsername(username);
+
+  if (!admin) {
+    return res.status(404).json({
+      status: "fail",
+      message: "No admin found with that username",
+    });
+  }
+
+  // Verify OTP
+  const isValidOTP = await AdminModel.verifyOTP(admin.id, otp);
+
+  if (!isValidOTP) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid or expired OTP",
+    });
+  }
+
+  // Generate reset token for password reset
+  const resetToken = await AdminModel.createPasswordResetToken(admin.id);
+
+  res.status(200).json({
+    status: "success",
+    message: "OTP verified successfully",
+    resetToken,
+  });
+});
 
 // Reset password
 exports.resetPassword = asyncHandler(async (req, res) => {
-  const { token } = req.params;
+  const { token } = req.query;
   const { password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Please provide reset token and new password",
+    });
+  }
 
   // Find admin by reset token
   const admin = await AdminModel.findAdminByResetToken(token);
@@ -118,8 +185,8 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   // Update password
   await AdminModel.updatePassword(admin.id, password);
 
-  // Clear reset token
-  await AdminModel.clearResetToken(admin.id);
+  // Clear reset data
+  await AdminModel.clearResetData(admin.id);
 
   // Generate new JWT token
   const jwtToken = generateToken(admin.id);
