@@ -78,16 +78,21 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   // Email content
   const message = `Your password reset OTP is: ${otp}. It will expire in 10 minutes.`;
   const htmlMessage = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Password Reset</h2>
-      <p>You requested to reset your password. Please use the following OTP code:</p>
-      <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 24px; letter-spacing: 5px; font-weight: bold;">
-        ${otp}
-      </div>
-      <p>This code will expire in 10 minutes.</p>
-      <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; padding: 30px; border-radius: 10px; background-color: #f9f9f9;">
+    <h2 style="color: #2c3e50;">🔐 Password Reset Request</h2>
+    <p style="font-size: 16px;">Hello,</p>
+    <p style="font-size: 16px;">
+      You requested to reset your password for your IMC Business Solutions account. Use the following One-Time Password (OTP) to proceed:
+    </p>
+    <div style="text-align: center; margin: 20px 0;">
+      <span style="font-size: 28px; font-weight: bold; color: #e74c3c; letter-spacing: 6px;">${otp}</span>
     </div>
-  `;
+    <p style="font-size: 16px;">⚠️ This OTP will expire in <strong>10 minutes</strong>.</p>
+    <p style="font-size: 16px;">If you didn’t request this, you can safely ignore this email.</p>
+    <br/>
+    <p style="font-size: 14px; color: #7f8c8d;">— IMC Business Solutions</p>
+  </div>
+`;
 
   try {
     // Log the recipient email right before sending

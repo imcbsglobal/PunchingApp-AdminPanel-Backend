@@ -1,9 +1,9 @@
-// services/emailService.js
 const nodemailer = require("nodemailer");
 const logger = require("../config/winston");
 
 const sendEmail = async (options) => {
   try {
+    console.log("Sending Email with Options:", options);
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
@@ -14,11 +14,15 @@ const sendEmail = async (options) => {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: `"IMC Business Solutions" <${process.env.EMAIL_USER}>`,
       to: options.email,
-      subject: options.subject,
-      text: options.message,
-      html: options.html,
+      subject: options.subject || "🔐 IMC Password Reset OTP",
+      text:
+        options.message ||
+        "Please use the provided OTP to reset your password.",
+      html:
+        options.html ||
+        "<p>Please use the provided OTP to reset your password.</p>",
     };
 
     await transporter.sendMail(mailOptions);
