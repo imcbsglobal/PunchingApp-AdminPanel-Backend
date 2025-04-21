@@ -11,6 +11,10 @@ const adminRoutes = require("./routes/adminRoutes");
 
 // Create Express app
 const app = express();
+app.use((req, res, next) => {
+  console.log(`🔍 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Body parser
 app.use(express.json({ limit: "10kb" }));
@@ -35,6 +39,7 @@ app.use("/api/v1/data", dataRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
 // Basic health check endpoint
+console.log("✅ /health route registered");
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
