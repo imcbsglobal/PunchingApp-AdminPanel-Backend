@@ -9,5 +9,6 @@ router.use(protect); // Protect all routes
 router.get("/users", dataController.getUsers);
 router.get("/master", dataController.getMasterData);
 router.get("/punch-records", dataController.getPunchRecords);
+router.get("/punch-records/by-date", dataController.getPunchRecordsByDate);
 
 module.exports = router;
